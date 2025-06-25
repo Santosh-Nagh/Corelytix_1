@@ -1,35 +1,29 @@
+// File: /src/app/api/admin/cashflow/route.ts
+// Description: FINAL. Uses the getSession helper for auth and is multi-tenant aware.
+
 import { NextResponse } from 'next/server';
 import { createClient } from '@/lib/supabase/server';
+import { getSession } from '@/lib/session';
 
 export async function GET(request: Request) {
-  const supabase = createClient();
-  const { data: { user } } = await supabase.auth.getUser();
+  const session = await getSession();
 
-  if (!user) {
+  if (!session || (session.role !== 'admin' && session.role !== 'manager')) {
     return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
   }
 
-  const { data: transactionsData, error: transactionsError } = await supabase
-    .from('transactions')
-    .select('amount, created_at')
-    .eq('status', 'completed')
-    .eq('user_uid', user.id)
-    .order('created_at', { ascending: true });
+  const supabase = createClient();
 
-  if (transactionsError) {
-    console.error('Error fetching cash flow data:', transactionsError);
+  const { data, error } = await supabase
+    .from('Transaction')
+    .select('amount, type, createdAt')
+    .eq('organizationId', session.orgId)
+    .order('createdAt', { ascending: true });
+
+  if (error) {
+    console.error('Error fetching cash flow data:', error);
     return NextResponse.json({ error: 'Failed to fetch cash flow data' }, { status: 500 });
   }
 
-  const cashFlow = transactionsData?.reduce((acc, transaction) => {
-    const date = new Date(transaction.created_at).toISOString().split('T')[0];
-    if (acc[date]) {
-      acc[date] += transaction.amount;
-    } else {
-      acc[date] = transaction.amount;
-    }
-    return acc;
-  }, {} as Record<string, number>);
-
-  return NextResponse.json({ cashFlow });
+  return NextResponse.json(data || []);
 }

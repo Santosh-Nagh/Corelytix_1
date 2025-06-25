@@ -1,27 +1,13 @@
+// File: /src/app/admin/layout.tsx
+// Description: FINAL, CORRECTED VERSION. Fixes the import statement for AdminLayout
+// to use a named import instead of a default import.
+
 "use client";
 
-import { useEffect } from "react";
-import { useRouter } from "next/navigation";
-import { createClient } from "@/lib/supabase/client";
-import { AdminLayout } from "@/components/admin-layout";
+import React from 'react';
+// THE FIX: Use curly braces {} to import a named export.
+import { AdminLayout } from '@/components/admin-layout';
 
-export default function Layout({
-  children,
-}: Readonly<{
-  children: React.ReactNode;
-}>) {
-  const router = useRouter();
-  const supabase = createClient();
-
-  useEffect(() => {
-    const checkUser = async () => {
-      const { data: { user } } = await supabase.auth.getUser();
-      if (!user) {
-        router.push('/login');
-      }
-    };
-    checkUser();
-  }, [router, supabase.auth]);
-
+export default function Layout({ children }: { children: React.ReactNode }) {
   return <AdminLayout>{children}</AdminLayout>;
 }

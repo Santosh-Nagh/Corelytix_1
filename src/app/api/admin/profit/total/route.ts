@@ -1,36 +1,40 @@
+// File: /src/app/api/admin/profit/total/route.ts
+// Description: FINAL. Uses the getSession helper for auth and is multi-tenant aware.
+
 import { NextResponse } from 'next/server';
 import { createClient } from '@/lib/supabase/server';
+import { getSession } from '@/lib/session';
 
 export async function GET(request: Request) {
-  const supabase = createClient();
-  const { data: { user } } = await supabase.auth.getUser();
+  const session = await getSession();
 
-  if (!user) {
+  if (!session || (session.role !== 'admin' && session.role !== 'manager')) {
     return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
   }
-  const { data: transactionsData, error: transactionsError } = await supabase
-    .from('transactions')
-    .select('amount, type, category, created_at')
-    .eq('status', 'completed')
-    .eq('user_uid', user.id)
-    .order('created_at', { ascending: true });
 
-  if (transactionsError) {
-    console.error('Error fetching transactions:', transactionsError);
-    return NextResponse.json({ error: 'Failed to fetch transactions' }, { status: 500 });
+  const supabase = createClient();
+
+  // Fetch income
+  const { data: incomeData, error: incomeError } = await supabase
+    .from('Transaction')
+    .select('amount')
+    .eq('type', 'income')
+    .eq('organizationId', session.orgId);
+
+  // Fetch expenses
+  const { data: expenseData, error: expenseError } = await supabase
+    .from('Expense')
+    .select('amount')
+    .eq('organizationId', session.orgId);
+
+  if (incomeError || expenseError) {
+    console.error('Error fetching profit data:', incomeError || expenseError);
+    return NextResponse.json({ error: 'Failed to fetch profit data' }, { status: 500 });
   }
 
-  const sellingTransactions = transactionsData?.filter(transaction => transaction.category === 'selling');
-  const expenseTransactions = transactionsData?.filter(transaction => transaction.type === 'expense');
-
-  if (!sellingTransactions || !expenseTransactions) {
-    return NextResponse.json({ error: 'Failed to calculate profit margin' }, { status: 500 });
-  }
-
-  const totalSelling = sellingTransactions?.reduce((sum, transaction) => sum + transaction.amount, 0) || 0;
-  const totalExpenses = expenseTransactions?.reduce((sum, transaction) => sum + transaction.amount, 0) || 0;
-
-  const totalProfit = totalSelling - totalExpenses;
+  const totalIncome = incomeData?.reduce((sum, item) => sum + item.amount, 0) || 0;
+  const totalExpenses = expenseData?.reduce((sum, item) => sum + item.amount, 0) || 0;
+  const totalProfit = totalIncome - totalExpenses;
 
   return NextResponse.json({ totalProfit });
 }

@@ -1,24 +1,31 @@
-import { NextResponse } from "next/server";
-import { cookies } from "next/headers";
-import jwt from "jsonwebtoken";
+// File: /src/app/api/auth/session/route.ts
+// Description: FINAL, CORRECTED VERSION. This route now uses the 'jose' library
+// to verify the session cookie, aligning it with the middleware and login route.
+// This is the final fix to solve the redirect loop.
 
-const JWT_SECRET = process.env.JWT_SECRET || "kunafasecret123";
+import { NextResponse } from 'next/server';
+import { cookies } from 'next/headers';
+import { jwtVerify } from 'jose';
 
-export async function GET() {
-  const cookie = cookies().get("session");
-  if (!cookie) {
-    return NextResponse.json({ error: "No session" }, { status: 401 });
+const JWT_SECRET = new TextEncoder().encode(process.env.JWT_SECRET || 'a-very-secure-and-long-secret-key-for-jwt');
+
+export async function GET(request: Request) {
+  const cookieStore = cookies();
+  const token = cookieStore.get('session');
+
+  if (!token) {
+    return NextResponse.json({ error: 'Not authenticated' }, { status: 401 });
   }
 
   try {
-    const decoded: any = jwt.verify(cookie.value, JWT_SECRET);
-    return NextResponse.json({
-      userId: decoded.userId,
-      name: decoded.name,
-      role: decoded.role,
-      email: decoded.email,
-    });
-  } catch (e) {
-    return NextResponse.json({ error: "Invalid session" }, { status: 401 });
+    // Use the same 'jose' library to verify the token that was used to create it.
+    const { payload } = await jwtVerify(token.value, JWT_SECRET);
+
+    // If verification is successful, return the session data from the token's payload.
+    return NextResponse.json(payload);
+  } catch (err) {
+    // If verification fails, the token is invalid or expired.
+    console.log('Session check failed:', err);
+    return NextResponse.json({ error: 'Session is invalid or has expired' }, { status: 401 });
   }
 }

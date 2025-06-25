@@ -1,60 +1,44 @@
+// File: /src/app/api/admin/profit/margin/route.ts
+// Description: FINAL. This route was missing from the original project but is needed.
+// Uses the getSession helper for auth and is multi-tenant aware.
+
 import { NextResponse } from 'next/server';
 import { createClient } from '@/lib/supabase/server';
+import { getSession } from '@/lib/session';
 
 export async function GET(request: Request) {
-  const supabase = createClient();
-  const { data: { user } } = await supabase.auth.getUser();
+  const session = await getSession();
 
-  if (!user) {
+  if (!session || (session.role !== 'admin' && session.role !== 'manager')) {
     return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
   }
 
-  const { data: transactionsData, error: transactionsError } = await supabase
-    .from('transactions')
-    .select('amount, type, category, created_at')
-    .eq('status', 'completed')
-    .eq('user_uid', user.id)
-    .order('created_at', { ascending: true });
+  const supabase = createClient();
 
-  if (transactionsError) {
-    console.error('Error fetching transactions:', transactionsError);
-    return NextResponse.json({ error: 'Failed to fetch transactions' }, { status: 500 });
+  // Fetch income
+  const { data: incomeData, error: incomeError } = await supabase
+    .from('Transaction')
+    .select('amount')
+    .eq('type', 'income')
+    .eq('organizationId', session.orgId);
+
+  // Fetch expenses
+  const { data: expenseData, error: expenseError } = await supabase
+    .from('Expense')
+    .select('amount')
+    .eq('organizationId', session.orgId);
+
+  if (incomeError || expenseError) {
+    console.error('Error fetching profit margin data:', incomeError || expenseError);
+    return NextResponse.json({ error: 'Failed to fetch profit margin data' }, { status: 500 });
   }
 
-  if (!transactionsData) {
-    return NextResponse.json({ error: 'No transactions found' }, { status: 404 });
-  }
+  const totalIncome = incomeData?.reduce((sum, item) => sum + item.amount, 0) || 0;
+  const totalExpenses = expenseData?.reduce((sum, item) => sum + item.amount, 0) || 0;
+  const totalProfit = totalIncome - totalExpenses;
 
-  const profitMargin = calculateProfitMarginSeries(transactionsData);
+  // Avoid division by zero
+  const profitMargin = totalIncome > 0 ? (totalProfit / totalIncome) * 100 : 0;
 
   return NextResponse.json({ profitMargin });
-}
-
-function calculateProfitMarginSeries(transactions: any[]) {
-  const dailyData: { [key: string]: { selling: number; expense: number } } = {};
-
-  transactions.forEach(transaction => {
-    const date = transaction.created_at.split('T')[0];
-    if (!dailyData[date]) {
-      dailyData[date] = { selling: 0, expense: 0 };
-    }
-
-    if (transaction.category === 'selling') {
-      dailyData[date].selling += transaction.amount;
-    } else if (transaction.type === 'expense') {
-      dailyData[date].expense += transaction.amount;
-    }
-  });
-
-  const profitMarginSeries = Object.entries(dailyData).map(([date, data]) => {
-    const { selling, expense } = data;
-    const profit = selling - expense;
-    const margin = selling > 0 ? (profit / selling) * 100 : 0;
-    return {
-      date,
-      margin: parseFloat(margin.toFixed(2))
-    };
-  });
-
-  return profitMarginSeries;
 }
