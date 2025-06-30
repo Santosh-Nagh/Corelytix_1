@@ -1,0 +1,32 @@
+name: Corelytix CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+
+jobs:
+  install-and-test:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: 📥 Checkout code
+        uses: actions/checkout@v3
+
+      - name: 🟢 Set up Node.js
+        uses: actions/setup-node@v3
+        with:
+          node-version: '18'
+
+      - name: 📦 Install dependencies
+        run: npm install
+
+      - name: 🔧 Install Prisma CLI
+        run: npm install prisma --save-dev
+
+      - name: 🔁 Generate Prisma Client
+        run: npx prisma generate
+
+      - name: ✅ Run tests
+        run: npm test
