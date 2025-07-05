@@ -2,7 +2,7 @@
 // Description: Session verification commented out. This route now returns a mock session.
 // Uncomment the code below to re-enable JWT session verification.
 
-import { NextResponse } from 'next/response';
+import { NextResponse } from 'next/server';
 import { cookies } from 'next/headers';
 // import { jwtVerify } from 'jose';
 
