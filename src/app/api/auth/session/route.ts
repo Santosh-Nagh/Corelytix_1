@@ -1,13 +1,12 @@
 // File: /src/app/api/auth/session/route.ts
-// Description: FINAL, CORRECTED VERSION. This route now uses the 'jose' library
-// to verify the session cookie, aligning it with the middleware and login route.
-// This is the final fix to solve the redirect loop.
+// Description: Session verification commented out. This route now returns a mock session.
+// Uncomment the code below to re-enable JWT session verification.
 
-import { NextResponse } from 'next/server';
+import { NextResponse } from 'next/response';
 import { cookies } from 'next/headers';
-import { jwtVerify } from 'jose';
+// import { jwtVerify } from 'jose';
 
-const JWT_SECRET = new TextEncoder().encode(process.env.JWT_SECRET || 'a-very-secure-and-long-secret-key-for-jwt');
+// const JWT_SECRET = new TextEncoder().encode(process.env.JWT_SECRET || 'a-very-secure-and-long-secret-key-for-jwt');
 
 export async function GET(request: Request) {
   const cookieStore = cookies();
@@ -17,6 +16,8 @@ export async function GET(request: Request) {
     return NextResponse.json({ error: 'Not authenticated' }, { status: 401 });
   }
 
+  // COMMENTED OUT: JWT session verification
+  /*
   try {
     // Use the same 'jose' library to verify the token that was used to create it.
     const { payload } = await jwtVerify(token.value, JWT_SECRET);
@@ -28,4 +29,17 @@ export async function GET(request: Request) {
     console.log('Session check failed:', err);
     return NextResponse.json({ error: 'Session is invalid or has expired' }, { status: 401 });
   }
+  */
+
+  // TEMPORARY: Mock session for development
+  // Remove this when re-enabling JWT verification
+  const mockSession = {
+    userId: 'mock-user-id',
+    name: 'Demo User',
+    role: 'admin',
+    email: 'demo@example.com',
+    orgId: 'mock-org-id'
+  };
+
+  return NextResponse.json(mockSession);
 }

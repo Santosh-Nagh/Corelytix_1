@@ -1,17 +1,16 @@
 // File: src/app/api/auth/login/route.ts
-// Description: FINAL REFACTOR. This route securely finds a user by PIN,
-// then uses the 'jose' library to create a secure, HttpOnly session cookie.
-// This is the production-ready implementation.
+// Description: PIN authentication commented out. This route now returns a mock response.
+// Uncomment the code below to re-enable PIN-based authentication.
 
 import { NextResponse } from 'next/server';
 import { cookies } from 'next/headers';
-import { createClient } from '@/lib/supabase/server';
-import { SignJWT } from 'jose';
+// import { createClient } from '@/lib/supabase/server';
+// import { SignJWT } from 'jose';
 
 // IMPORTANT: Your JWT secret should be a long, random string stored securely
 // in your environment variables (.env file and on Vercel).
-const JWT_SECRET = new TextEncoder().encode(process.env.JWT_SECRET || 'a-very-secure-and-long-secret-key-for-jwt');
-const ALG = 'HS256';
+// const JWT_SECRET = new TextEncoder().encode(process.env.JWT_SECRET || 'a-very-secure-and-long-secret-key-for-jwt');
+// const ALG = 'HS256';
 
 export async function POST(request: Request) {
   const body = await request.json();
@@ -21,6 +20,8 @@ export async function POST(request: Request) {
     return NextResponse.json({ error: 'PIN required' }, { status: 400 });
   }
 
+  // COMMENTED OUT: PIN-based authentication
+  /*
   const supabase = createClient();
 
   // Find the user by their PIN code.
@@ -58,4 +59,23 @@ export async function POST(request: Request) {
   });
 
   return NextResponse.json({ ok: true, role: user.role, name: user.name });
+  */
+
+  // TEMPORARY: Mock authentication for development
+  // Remove this when re-enabling PIN authentication
+  const mockUser = {
+    role: 'admin',
+    name: 'Demo User'
+  };
+
+  // Set a mock session cookie
+  cookies().set('session', 'mock-session-token', {
+    httpOnly: true,
+    secure: process.env.NODE_ENV === 'production',
+    sameSite: 'lax',
+    path: '/',
+    maxAge: 60 * 60 * 24, // 24 hours
+  });
+
+  return NextResponse.json({ ok: true, role: mockUser.role, name: mockUser.name });
 }
